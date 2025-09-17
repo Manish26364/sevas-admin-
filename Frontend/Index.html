@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LaundrySync Admin</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Login Section -->
+  <div id="loginPage" class="login-container">
+    <div class="login-box">
+      <img src="sevas_logo.png" alt="sevas_logo" class="login-logo">
+      <h2>Sevas Admin Login</h2>
+      <div class="form-group">
+        <input id="username" placeholder="Username" class="form-input">
+        <input id="password" type="password" placeholder="Password" class="form-input">
+        <button onclick="login()" class="action-btn">Login</button>
+      </div>
+      <p id="loginError" class="error-message"></p>
+    </div>
+  </div>
+  <!-- Main Admin Panel (Hidden Initially) -->
+  <div class="container" id="adminPanel" style="display: none;">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <img src="sevas_logo.png" alt="sevas_logo" class="logo">
+      <h2>LaundrySync</h2>
+      <nav>
+        <button onclick="showDashboard()" class="nav-btn active" id="dashboardBtn">Dashboard</button>
+        <button onclick="showResidents()" class="nav-btn" id="residentsBtn">Residents</button>
+        <button onclick="showBookings()" class="nav-btn" id="bookingsBtn">Bookings</button>
+        <button onclick="showMachines()" class="nav-btn" id="machinesBtn">Machines</button>
+        <button onclick="showSettings()" class="nav-btn" id="settingsBtn">Settings</button>
+      </nav>
+    </div>
+    <!-- Main Content -->
+    <div class="main-content">
+      <header>
+        <h1> Sevas Laundry Admin Panel</h1>
+        <button onclick="logout()" class="logout-btn">Logout</button>
+      </header>
+      <!-- Dashboard Section -->
+      <div id="dashboard" class="section">
+        <h2>Dashboard</h2>
+        <div class="dashboard-grid">
+          <div class="card">
+            <h3>Today's Bookings</h3>
+            <p id="bookings">Loading...</p>
+          </div>
+          <div class="card">
+            <h3>Free Machines</h3>
+            <p id="machines">Checking...</p>
+          </div>
+          <div class="card full-width">
+            <h3>Booked By</h3>
+            <p id="bookedByWho">Checking...</p>
+          </div>
+          <div class="card full-width">
+            <h3>Bookings per Machine</h3>
+            <canvas id="bookingsChart" width="400" height="200"></canvas>
+          </div>
+        </div>
+        <button onclick="getDashboard()" class="refresh-btn">Refresh Dashboard</button>
+      </div>
+      <!-- Residents Section -->
+      <div id="residents" class="section" style="display: none;">
+        <h2>Resident Management</h2>
+        <div class="table-container">
+          <table id="residentTable">
+            <thead>
+              <tr><th>Name</th><th>Email</th><th>Room</th><th>Actions</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <h3>Add New Resident</h3>
+        <div class="form-group">
+          <input id="newName" placeholder="Name" class="form-input">
+          <input id="newEmail" placeholder="Email" class="form-input">
+          <input id="newRoom" placeholder="Room Number" class="form-input">
+          <button onclick="addResident()" class="action-btn">Add Resident</button>
+        </div>
+      </div>
+      <!-- Bookings Section -->
+      <div id="bookingsPage" class="section" style="display: none;">
+        <h2>Booking Management</h2>
+        <div class="search-bar">
+          <input id="searchBooking" placeholder="Search by name, machine, or time" class="form-input">
+          <button onclick="searchBookings()" class="action-btn">Search</button>
+        </div>
+        <div class="table-container">
+          <table id="bookingTable">
+            <thead>
+              <tr><th>Machine</th><th>Time</th><th>User</th><th>Type</th><th>Actions</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <h3>Add Manual Booking</h3>
+        <div class="form-group">
+          <input id="newBookingMachine" placeholder="Machine (e.g., Washer 1)" class="form-input">
+          <input id="newBookingTime" placeholder="Time (e.g., 10:00)" class="form-input">
+          <input id="newBookingUser" placeholder="User Name" class="form-input">
+          <button onclick="addBooking()" class="action-btn">Add Booking</button>
+        </div>
+      </div>
+      <!-- Machines Section -->
+      <div id="machinesPage" class="section" style="display: none;">
+        <h2>Machine Management</h2>
+        <div class="table-container">
+          <table id="machineTable">
+            <thead>
+              <tr><th>Name</th><th>Status</th><th>Usage (Hours)</th><th>Actions</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <h3>Schedule Maintenance</h3>
+        <div class="form-group">
+          <input id="maintenanceMachine" placeholder="Machine (e.g., Washer 1)" class="form-input">
+          <input id="maintenanceTime" placeholder="Time (e.g., 14:00)" class="form-input">
+          <button onclick="scheduleMaintenance()" class="action-btn">Block for Maintenance</button>
+        </div>
+      </div>
+      <!-- Settings Section -->
+      <div id="settingsPage" class="section" style="display: none;">
+        <h2>System Settings</h2>
+        <div class="form-group">
+          <label for="bookingDuration">Booking Duration (hours):</label>
+          <input id="bookingDuration" type="number" placeholder="e.g., 2" class="form-input">
+        </div>
+        <div class="form-group">
+          <label for="maxBookings">Max Bookings per User per Week:</label>
+          <input id="maxBookings" type="number" placeholder="e.g., 3" class="form-input">
+        </div>
+        <div class="form-group">
+          <label for="maxDaysAhead">Max Days Ahead to Book:</label>
+          <input id="maxDaysAhead" type="number" placeholder="e.g., 7" class="form-input">
+        </div>
+        <button onclick="saveSettings()" class="action-btn">Save Settings</button>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
