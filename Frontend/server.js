@@ -2,22 +2,27 @@ const express = require('express');
 const { MongoClient } = require('mongodb');
 const session = require('express-session');
 const MongoDBStore = require('connect-mongodb-session')(session);
+
 const app = express();
 
-// Allow JSON and serve files
+// ====== CONFIG ======
+// Use your MongoDB Atlas connection string
+const MONGO_URI = 'mongodb+srv://Manish1:Manish%401@cluster0.naa9gjp.mongodb.net/laundrySystem?retryWrites=true&w=majority&appName=Cluster0';
+const DB_NAME = 'laundrySystem';
+
+// ====== MIDDLEWARE ======
 app.use(express.json());
 app.use(express.static('.'));
 
 // Session store in MongoDB
 const store = new MongoDBStore({
-  uri: 'mongodb://localhost:27017/laundrySystem',
+  uri: MONGO_URI,
   collection: 'sessions'
 });
-store.on('error', function(error) {
+store.on('error', function (error) {
   console.error('Session store error:', error);
 });
 
-// Session middleware
 app.use(session({
   secret: 'laundrysync-secret-key',
   resave: false,
@@ -26,18 +31,18 @@ app.use(session({
   cookie: { maxAge: 1000 * 60 * 60 } // 1 hour
 }));
 
-// Connect to MongoDB
-const url = 'mongodb://localhost:27017';
-const client = new MongoClient(url);
-const dbName = 'laundrySystem';
+// ====== DB CONNECTION ======
+const client = new MongoClient(MONGO_URI);
 
 async function connectDB() {
-  await client.connect();
-  console.log('Connected to MongoDB!');
-  return client.db(dbName);
+  if (!client.topology?.isConnected()) {
+    await client.connect();
+    console.log('Connected to MongoDB Atlas!');
+  }
+  return client.db(DB_NAME);
 }
 
-// Initialize database with default data
+// ====== INIT DEFAULT DATA ======
 async function initDB() {
   const db = await connectDB();
   const bookings = db.collection('bookings');
@@ -46,7 +51,6 @@ async function initDB() {
   const settings = db.collection('settings');
   const users = db.collection('users');
 
-  // Default data
   if (await bookings.countDocuments() === 0) {
     await bookings.insertMany([
       { id: '1', machine: 'Washer 1', time: '10:00', user: 'Bob', isMaintenance: false },
@@ -74,18 +78,17 @@ async function initDB() {
       maxDaysAhead: 7
     });
   }
-  // Default admin user
   if (await users.countDocuments() === 0) {
     await users.insertOne({
       username: '1',
-      password: '1' // Plaintext for simplicity; use bcrypt in production
+      password: '1' // plaintext, use bcrypt in production
     });
   }
 }
 
 initDB().catch(console.error);
 
-// Middleware to check authentication
+// ====== AUTH MIDDLEWARE ======
 function isAuthenticated(req, res, next) {
   if (req.session.user) {
     next();
@@ -94,8 +97,10 @@ function isAuthenticated(req, res, next) {
   }
 }
 
-// Login route
-app.post('/login', async function(req, res) {
+// ====== ROUTES ======
+
+// Login
+app.post('/login', async function (req, res) {
   try {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).send('Username and password required!');
@@ -113,8 +118,8 @@ app.post('/login', async function(req, res) {
   }
 });
 
-// Logout route
-app.post('/logout', function(req, res) {
+// Logout
+app.post('/logout', function (req, res) {
   req.session.destroy(err => {
     if (err) {
       console.error('Logout error:', err);
@@ -124,41 +129,43 @@ app.post('/logout', function(req, res) {
   });
 });
 
-// Dashboard info (protected)
-app.get('/dashboard', isAuthenticated, async function(req, res) {
+// Dashboard
+app.get('/dashboard', isAuthenticated, async function (req, res) {
   try {
     const db = await connectDB();
     const allBookings = await db.collection('bookings').find({ isMaintenance: false }).toArray();
-    const machines = await db.collection('machines').find({ status: 'free' }).toArray();
+    const freeMachinesArr = await db.collection('machines').find({ status: 'free' }).toArray();
+
     const todayBookings = allBookings.length;
-    const freeMachines = machines.map(m => m.name).join(', ');
+    const freeMachines = freeMachinesArr.map(m => m.name).join(', ');
     const bookedByWho = allBookings.map(b => `${b.user} at ${b.time} on ${b.machine}`).join('; ');
-    res.json({ 
-      bookings: todayBookings, 
-      freeMachines: freeMachines || 'None', 
+
+    res.json({
+      bookings: todayBookings,
+      freeMachines: freeMachines || 'None',
       bookedByWho: bookedByWho || 'No bookings yet!',
       bookingsData: allBookings
     });
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Dashboard error:', error);
     res.status(500).send('Error loading dashboard!');
   }
 });
 
-// Get all residents (protected)
-app.get('/residents', isAuthenticated, async function(req, res) {
+// Residents list
+app.get('/residents', isAuthenticated, async function (req, res) {
   try {
     const db = await connectDB();
     const residents = await db.collection('residents').find().toArray();
     res.json(residents);
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Residents error:', error);
     res.status(500).send('Error loading residents!');
   }
 });
 
-// Add new resident (protected)
-app.post('/residents', isAuthenticated, async function(req, res) {
+// Add resident
+app.post('/residents', isAuthenticated, async function (req, res) {
   try {
     const { name, email, room } = req.body;
     if (!name || !email || !room) return res.status(400).send('All fields required!');
@@ -169,13 +176,13 @@ app.post('/residents', isAuthenticated, async function(req, res) {
     await residents.insertOne(newResident);
     res.send('Resident added!');
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Add resident error:', error);
     res.status(500).send('Error adding resident!');
   }
 });
 
-// Block resident (protected)
-app.post('/residents/:id/block', isAuthenticated, async function(req, res) {
+// Block resident
+app.post('/residents/:id/block', isAuthenticated, async function (req, res) {
   try {
     const id = req.params.id;
     const db = await connectDB();
@@ -190,13 +197,13 @@ app.post('/residents/:id/block', isAuthenticated, async function(req, res) {
       res.status(404).send('Resident not found!');
     }
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Block resident error:', error);
     res.status(500).send('Error blocking resident!');
   }
 });
 
-// Unblock resident (protected)
-app.post('/residents/:id/unblock', isAuthenticated, async function(req, res) {
+// Unblock resident
+app.post('/residents/:id/unblock', isAuthenticated, async function (req, res) {
   try {
     const id = req.params.id;
     const db = await connectDB();
@@ -209,25 +216,25 @@ app.post('/residents/:id/unblock', isAuthenticated, async function(req, res) {
       res.status(404).send('Resident not found!');
     }
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Unblock resident error:', error);
     res.status(500).send('Error unblocking resident!');
   }
 });
 
-// Get all bookings (protected)
-app.get('/bookings', isAuthenticated, async function(req, res) {
+// Bookings list
+app.get('/bookings', isAuthenticated, async function (req, res) {
   try {
     const db = await connectDB();
     const bookings = await db.collection('bookings').find().toArray();
     res.json(bookings);
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Bookings error:', error);
     res.status(500).send('Error loading bookings!');
   }
 });
 
-// Add new booking (public for webpage)
-app.post('/bookings', async function(req, res) {
+// Add booking (public)
+app.post('/bookings', async function (req, res) {
   try {
     const { machine, time, user, isMaintenance } = req.body;
     if (!machine || !time || !user) return res.status(400).send('All fields required!');
@@ -237,7 +244,6 @@ app.post('/bookings', async function(req, res) {
     const bookings = db.collection('bookings');
     const settings = await db.collection('settings').findOne();
 
-    // Check resident (skip for maintenance)
     if (!isMaintenance) {
       const resident = await residents.findOne({ name: { $regex: `^${user}$`, $options: 'i' } });
       if (!resident) return res.status(400).send('Resident not found!');
@@ -246,31 +252,32 @@ app.post('/bookings', async function(req, res) {
       if (userBookings >= settings.maxBookings) return res.status(400).send('Max bookings reached!');
     }
 
-    // Check machine and time slot
     const machineToUpdate = await machines.findOne({ name: machine });
     if (!machineToUpdate) return res.status(400).send('Machine not found!');
     if (machineToUpdate.status !== 'free' && !isMaintenance) return res.status(400).send('Machine is not free!');
     if (await bookings.findOne({ machine, time })) return res.status(400).send('Time slot already booked!');
 
-    // Add booking
     const count = await bookings.countDocuments();
     const newBooking = { id: String(count + 1), machine, time, user, isMaintenance: !!isMaintenance };
     await bookings.insertOne(newBooking);
-    if (machineToUpdate) {
-      await machines.updateOne({ name: machine }, { 
+
+    await machines.updateOne(
+      { name: machine },
+      {
         $set: { status: isMaintenance ? 'out of order' : 'busy' },
         $inc: { usage: isMaintenance ? 0 : settings.bookingDuration }
-      });
-    }
+      }
+    );
+
     res.send('Booking added!');
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Add booking error:', error);
     res.status(500).send('Error adding booking!');
   }
 });
 
-// Cancel booking (protected)
-app.post('/bookings/:id/cancel', isAuthenticated, async function(req, res) {
+// Cancel booking
+app.post('/bookings/:id/cancel', isAuthenticated, async function (req, res) {
   try {
     const id = req.params.id;
     const db = await connectDB();
@@ -287,25 +294,25 @@ app.post('/bookings/:id/cancel', isAuthenticated, async function(req, res) {
       res.status(404).send('Booking not found!');
     }
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Cancel booking error:', error);
     res.status(500).send('Error canceling booking!');
   }
 });
 
-// Get all machines (protected)
-app.get('/machines', isAuthenticated, async function(req, res) {
+// Machines list
+app.get('/machines', isAuthenticated, async function (req, res) {
   try {
     const db = await connectDB();
     const machines = await db.collection('machines').find().toArray();
     res.json(machines);
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Machines error:', error);
     res.status(500).send('Error loading machines!');
   }
 });
 
-// Mark machine as out of order (protected)
-app.post('/machines/:name/break', isAuthenticated, async function(req, res) {
+// Mark machine as broken
+app.post('/machines/:name/break', isAuthenticated, async function (req, res) {
   try {
     const name = req.params.name;
     const db = await connectDB();
@@ -314,19 +321,19 @@ app.post('/machines/:name/break', isAuthenticated, async function(req, res) {
     const machine = await machines.findOne({ name });
     if (machine) {
       await machines.updateOne({ name }, { $set: { status: 'out of order' } });
-      await bookings.deleteMany({ machine, isMaintenance: false });
+      await bookings.deleteMany({ machine: name, isMaintenance: false });
       res.send('Machine marked as out of order!');
     } else {
       res.status(404).send('Machine not found!');
     }
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Break machine error:', error);
     res.status(500).send('Error marking machine as broken!');
   }
 });
 
-// Repair machine (protected)
-app.post('/machines/:name/repair', isAuthenticated, async function(req, res) {
+// Repair machine
+app.post('/machines/:name/repair', isAuthenticated, async function (req, res) {
   try {
     const name = req.params.name;
     const db = await connectDB();
@@ -335,47 +342,54 @@ app.post('/machines/:name/repair', isAuthenticated, async function(req, res) {
     const machine = await machines.findOne({ name });
     if (machine) {
       await machines.updateOne({ name }, { $set: { status: 'free' } });
-      await bookings.deleteMany({ machine, isMaintenance: true });
+      await bookings.deleteMany({ machine: name, isMaintenance: true });
       res.send('Machine repaired!');
     } else {
       res.status(404).send('Machine not found!');
     }
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Repair machine error:', error);
     res.status(500).send('Error repairing machine!');
   }
 });
 
-// Get system settings (protected)
-app.get('/settings', isAuthenticated, async function(req, res) {
+// Settings get
+app.get('/settings', isAuthenticated, async function (req, res) {
   try {
     const db = await connectDB();
     const settings = await db.collection('settings').findOne();
     res.json(settings || { bookingDuration: 2, maxBookings: 3, maxDaysAhead: 7 });
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Settings error:', error);
     res.status(500).send('Error loading settings!');
   }
 });
 
-// Save system settings (protected)
-app.post('/settings', isAuthenticated, async function(req, res) {
+// Settings save
+app.post('/settings', isAuthenticated, async function (req, res) {
   try {
     const { bookingDuration, maxBookings, maxDaysAhead } = req.body;
     if (!bookingDuration || !maxBookings || !maxDaysAhead) return res.status(400).send('All fields required!');
     const db = await connectDB();
     await db.collection('settings').updateOne(
       {},
-      { $set: { bookingDuration: Number(bookingDuration), maxBookings: Number(maxBookings), maxDaysAhead: Number(maxDaysAhead) } },
+      {
+        $set: {
+          bookingDuration: Number(bookingDuration),
+          maxBookings: Number(maxBookings),
+          maxDaysAhead: Number(maxDaysAhead)
+        }
+      },
       { upsert: true }
     );
     res.send('Settings saved!');
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Save settings error:', error);
     res.status(500).send('Error saving settings!');
   }
 });
 
+// ====== START SERVER ======
 app.listen(3000, () => {
   console.log('Magic robot is running on port 3000!');
 });
