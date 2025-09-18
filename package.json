@@ -7,9 +7,11 @@
   "type": "commonjs",
   "main": "index.js",
   
-  "scripts": {
-    "start": "node server.js"
-  },
+ "scripts": {
+  "start": "react-scripts start",
+  "build": "react-scripts build",
+  "serve": "serve -s build"
+},
   "dependencies": {
     "express": "^4.18.2",
     "mongodb": "^6.3.0",
