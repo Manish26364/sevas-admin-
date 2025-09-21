@@ -7,9 +7,10 @@
   "type": "commonjs",
   "main": "server.js",
   "scripts": {
-    "start": "node Frontend/server.js"
-    "dev": "nodemon Frontend/server.js"
-  },
+  "start": "node backend/server.js",
+  "dev": "nodemon Frontend/server.js"
+}
+
   "dependencies": {
     "bcrypt": "^5.1.1",
     "connect-mongodb-session": "^2.1.3",
