@@ -1,28 +1,20 @@
 {
-  "name": "panel",
+  "name": "frontend",
   "version": "1.0.0",
-  "description": "Laundry booking system backend",
-  "license": "ISC",
-  "author": "",
-  "type": "commonjs",
-  "main": "server.js",
+  "main": "script.js",
   "scripts": {
-  "start": "node backend/server.js",
-  "dev": "nodemon Frontend/server.js"
-}
-
+    "start": "node backend/server.js",
+    "dev": "nodemon Frontend/server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "description": "",
   "dependencies": {
-    "bcrypt": "^5.1.1",
-    "connect-mongodb-session": "^2.1.3",
-    "cors": "^2.8.5",
-    "express": "^4.18.2",
-    "express-session": "^1.17.3",
-    "mongodb": "^6.3.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.0"
-  },
-  "engines": {
-    "node": "22.x"
+    "connect-mongodb-session": "^5.0.0",
+    "express": "^5.1.0",
+    "express-session": "^1.18.2",
+    "mongodb": "^6.19.0"
   }
 }
