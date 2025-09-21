@@ -3,11 +3,9 @@
   "version": "1.0.0",
   "main": "script.js",
   "scripts": {
-  "scripts": {
-  "start": "node backend/server.js",
-  "dev": "nodemon Frontend/server.js"
-}
-
+    "start": "node backend/server.js",
+    "dev": "nodemon Frontend/server.js"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
